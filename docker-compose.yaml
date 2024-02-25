@@ -1,0 +1,16 @@
+services:
+  web:
+    image: ghcr.io/sistracia/writing:main
+    container_name: writing
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${ASPNETCORE_URLS_PORT}"
+    env_file:
+      - .env
+  watchtower:
+    image: containrrr/watchtower
+    container_name: writing-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 30 --cleanup true
