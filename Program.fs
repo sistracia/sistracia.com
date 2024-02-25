@@ -12,15 +12,15 @@ let contentPath = "./content"
 let contentExt = "*.md"
 
 module Parser =
-    let mdToHtml (md: string) = Markdown.ToHtml md
+    let mdToHtml (md: string) : string = Markdown.ToHtml md
 
-    let htmlToHtmlDoc (html: string) =
-        let doc = new HtmlDocument()
+    let htmlToHtmlDoc (html: string) : HtmlDocument =
+        let doc: HtmlDocument = new HtmlDocument()
         doc.LoadHtml(html)
         doc
 
 
-    let rec convertHtmlToJson (node: HtmlNode) =
+    let rec convertHtmlToJson (node: HtmlNode) : Map<string, obj> =
         let mutable json: Map<string, obj> = Map []
 
         json <- json.Add("tag", node.Name)
@@ -31,13 +31,13 @@ module Parser =
                 json.Add(
                     "children",
                     (Seq.empty, node.ChildNodes)
-                    ||> Seq.fold (fun previous childNode -> Seq.concat [ previous; [ convertHtmlToJson childNode ] ])
+                    ||> Seq.fold (fun (previous: Map<string, obj> seq) (childNode: HtmlNode) ->
+                        Seq.concat [ previous; [ convertHtmlToJson childNode ] ])
                 )
-
 
         json
 
-    let dictToJson (jsonObject: obj) =
+    let dictToJson (jsonObject: obj) : string =
         JsonSerializer.Serialize(jsonObject, JsonSerializerOptions(WriteIndented = true))
 
     let mdToHtmlDoc = mdToHtml >> htmlToHtmlDoc
@@ -47,15 +47,15 @@ module Parser =
 module Reader =
     let loadFiles (contentPath: string) (contentExt: string) =
         Directory.EnumerateFiles(contentPath, contentExt)
-        |> Seq.map (fun file -> File.ReadAllText file)
+        |> Seq.map (fun (file: string) -> File.ReadAllText file)
 
-let htmlStrings =
+let htmlStrings: string seq =
     (Reader.loadFiles contentPath contentExt)
-    |> Seq.map (fun file -> Parser.mdToHtml file)
+    |> Seq.map (fun (file: string) -> Parser.mdToHtml file)
 
-let jsonStrings =
+let jsonStrings: string seq =
     (Reader.loadFiles contentPath contentExt)
-    |> Seq.map (fun file -> Parser.htmlDocToJson (Parser.mdToHtmlDoc file).DocumentNode)
+    |> Seq.map (fun (file: string) -> Parser.htmlDocToJson (Parser.mdToHtmlDoc file).DocumentNode)
 
 
 webHost [||] {
