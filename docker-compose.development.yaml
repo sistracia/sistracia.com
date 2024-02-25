@@ -1,0 +1,9 @@
+services:
+  web:
+    build: .
+    container_name: writing
+    restart: unless-stopped
+    ports:
+      - "${PORT}:${ASPNETCORE_URLS_PORT}"
+    env_file:
+      - .env
