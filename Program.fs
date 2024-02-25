@@ -6,6 +6,7 @@ open Falco.HostBuilder
 open Markdig
 open HtmlAgilityPack
 open System.Text.Json
+open Microsoft.AspNetCore.Http
 open System.IO
 
 let contentPath = "./content"
@@ -45,21 +46,48 @@ module Parser =
     let htmlDocToJson = convertHtmlToJson >> dictToJson
 
 module Reader =
-    let loadFiles (contentPath: string) (contentExt: string) =
-        Directory.EnumerateFiles(contentPath, contentExt)
-        |> Seq.map (fun (file: string) -> File.ReadAllText file)
+    let loadFiles (contentPath: string) (contentExt: string) : Async<string seq> =
+        async {
+            return
+                Directory.EnumerateFiles(contentPath, contentExt)
+                |> Seq.map (fun (file: string) -> File.ReadAllText file)
+        }
 
-let htmlStrings: string seq =
-    (Reader.loadFiles contentPath contentExt)
-    |> Seq.map (fun (file: string) -> Parser.mdToHtml file)
+let htmlStrings: Async<string array> =
+    async {
+        let! (fileMetas: string seq) = Reader.loadFiles contentPath contentExt
 
-let jsonStrings: string seq =
-    (Reader.loadFiles contentPath contentExt)
-    |> Seq.map (fun (file: string) -> Parser.htmlDocToJson (Parser.mdToHtmlDoc file).DocumentNode)
+        return!
+            fileMetas
+            |> Seq.map (fun (file: string) -> async { return Parser.mdToHtml file })
+            |> Async.Parallel
+    }
+
+let jsonStrings: Async<string array> =
+    async {
+        let! (fileMetas: string seq) = (Reader.loadFiles contentPath contentExt)
+
+        return!
+            fileMetas
+            |> Seq.map (fun (file: string) ->
+                async { return Parser.htmlDocToJson (Parser.mdToHtmlDoc file).DocumentNode })
+            |> Async.Parallel
+    }
 
 
-webHost [||] {
-    endpoints
-        [ get "/html" (Response.ofHtmlString (htmlStrings |> Seq.head))
-          get "/json" (Response.ofPlainText (jsonStrings |> Seq.head)) ]
-}
+let htmlHandler: HttpHandler =
+    fun (ctx: HttpContext) ->
+        task {
+            let! (awaitedHtmlStrings: string array) = htmlStrings
+            return! Response.ofHtmlString (awaitedHtmlStrings |> Seq.head) ctx
+        }
+
+
+let jsonHandler: HttpHandler =
+    fun (ctx: HttpContext) ->
+        task {
+            let! (awaitedJsonStrings: string array) = jsonStrings
+            return! Response.ofPlainText (awaitedJsonStrings |> Seq.head) ctx
+        }
+
+webHost [||] { endpoints [ get "/html" htmlHandler; get "/json" jsonHandler ] }
