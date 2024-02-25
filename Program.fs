@@ -3,6 +3,7 @@ module Writing.Program
 open Falco
 open Falco.Routing
 open Falco.HostBuilder
+open Falco.Markup
 open Markdig
 open HtmlAgilityPack
 open Microsoft.AspNetCore.Http
@@ -33,12 +34,10 @@ module Parser =
         doc.LoadHtml(html)
         doc
 
-
     let rec convertHtmlToJson (node: HtmlNode) : Map<string, obj> =
         let mutable json: Map<string, obj> = Map []
 
         json <- json.Add("tag", node.Name)
-        json <- json.Add("text", node.InnerText.Trim())
 
         if node.HasChildNodes then
             json <-
@@ -75,7 +74,9 @@ module Content =
         async { return Parser.convertHtmlToJson ((Parser.mdToHtmlDoc fileMeta.Content).DocumentNode) }
 
 let (fileMetas: FileMeta seq) =
-    Reader.loadFiles contentPath contentExt |> Async.RunSynchronously
+    (Reader.loadFiles contentPath contentExt)
+    |> Async.RunSynchronously
+    |> Seq.sortByDescending _.CreationTime
 
 module ApiResponse =
     let metasToResponses: FileResponse seq =
@@ -99,17 +100,56 @@ module ApiResponse =
             | None -> return Map.empty
         }
 
-module ApiHandler =
-    let metaHandler: HttpHandler = Response.ofJson ApiResponse.metasToResponses
+module HtmlView =
+    // Template
+    let master (title: string) (content: XmlNode list) : XmlNode =
+        Elem.html
+            [ Attr.lang "en" ]
+            [ Elem.head
+                  []
+                  [ Elem.meta [ Attr.charset "UTF-8" ]
+                    Elem.meta [ Attr.name "viewport"; Attr.content "width=device-width, initial-scale=1.0" ]
+                    Elem.title [] [ Text.raw title ]
+                    Elem.style
+                        []
+                        [ Text.raw ".mx-auto { margin-right: auto; margin-left: auto; }"
+                          Text.raw ".mw-800px { max-width: 800px; }" ] ]
+              Elem.body [] content ]
 
-    let htmlHandler: HttpHandler =
+    let homeView: XmlNode =
+        master
+            "Writting"
+            [ Elem.main
+                  [ Attr.class' "mx-auto mw-800px" ]
+                  [ Elem.h1 [] [ Text.raw "Writting" ]
+                    yield!
+                        [ for fileMeta in fileMetas do
+                              Elem.div
+                                  []
+                                  [ Elem.h2 [] [ Text.raw fileMeta.Slug ]
+                                    Elem.p [] [ Text.raw (fileMeta.CreationTime.ToString()) ]
+                                    Elem.p [] [ Text.raw (fileMeta.ModificationType.ToString()) ]
+                                    Elem.a
+                                        [ Attr.href (sprintf $"{Uri.EscapeDataString(fileMeta.Slug)}") ]
+                                        [ Text.raw "Read More" ] ] ] ] ]
+
+    let detailView (content: string) : XmlNode =
+        master "Writting" [ Elem.main [ Attr.class' "mx-auto mw-800px" ] [ Text.raw content ] ]
+
+
+module ApiHandler =
+    let mainPageHandler: HttpHandler = Response.ofHtml HtmlView.homeView
+
+    let detailPage: HttpHandler =
         fun (ctx: HttpContext) ->
             task {
                 let route: RouteCollectionReader = Request.getRoute ctx
                 let slug: string = route.GetString "slug"
                 let! (htmlResponse: string) = ApiResponse.getHtmlBySlug slug
-                return! Response.ofHtmlString htmlResponse ctx
+                return! Response.ofHtml (HtmlView.detailView htmlResponse) ctx
             }
+
+    let metaHandler: HttpHandler = Response.ofJson ApiResponse.metasToResponses
 
     let jsonHandler: HttpHandler =
         fun (ctx: HttpContext) ->
@@ -122,7 +162,8 @@ module ApiHandler =
 
 webHost [||] {
     endpoints
-        [ get "/metas" ApiHandler.metaHandler
-          get "/html/{slug}" ApiHandler.htmlHandler
+        [ get "/" ApiHandler.mainPageHandler
+          get "/{slug}" ApiHandler.detailPage
+          get "/metas" ApiHandler.metaHandler
           get "/json/{slug}" ApiHandler.jsonHandler ]
 }
