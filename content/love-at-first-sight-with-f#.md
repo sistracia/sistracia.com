@@ -1,6 +1,6 @@
 - First time hear about F#
 - SAFE stack
-- Experience with SAFE stack (docs, learning, error)
+- Experience with SAFE stack (docs, learning, debugging, searching for resource, error)
 - Though about SAFE stack
 - Migrate to Giraffe
 - Next step
