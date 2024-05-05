@@ -1,4 +1,4 @@
-# writing
+# sistracia.com
 
 Personal blog for sharing Sistracia's journey in programming.
 
@@ -44,13 +44,13 @@ docker compose -f docker-compose.development.yaml up
 
 ```bash
 # Build
-docker build -t writing .
+docker build -t sistracia .
 
 # Tag
-docker image tag writing:latest <docker-registry>/writing:latest
+docker image tag sistracia:latest <docker-registry>/sistracia:latest
 
 # Push
-docker image push <docker-registry>/writing:latest
+docker image push <docker-registry>/sistracia:latest
 ```
 
 #### Try Run Docker Image
@@ -64,10 +64,10 @@ ASPNETCORE_URLS=<SERVER APP HOST AND PORT INSIDE Docker>
 Run the Docker image
 
 ```bash
-docker run --env-file ./.env -p <PUBLISHD PORT>:<SERVER APP PORT INSIDE Docker> writing
+docker run --env-file ./.env -p <PUBLISHD PORT>:<SERVER APP PORT INSIDE Docker> sistracia
 ## or
 docker run \
 -e ASPNETCORE_URLS="<SERVER APP HOST AND PORT INSIDE Docker>" \
 -p <PUBLISHD PORT>:<SERVER APP PORT INSIDE Docker> \
-writing
+sistracia
 ```

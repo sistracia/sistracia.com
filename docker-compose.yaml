@@ -1,7 +1,7 @@
 services:
   web:
-    image: ghcr.io/sistracia/writing:main
-    container_name: writing
+    image: ghcr.io/sistracia/sistracia.com:main
+    container_name: sistracia.com
     restart: unless-stopped
     ports:
       - "${PORT}:${ASPNETCORE_URLS_PORT}"
@@ -9,7 +9,7 @@ services:
       - .env
   watchtower:
     image: containrrr/watchtower:1.7.1
-    container_name: writing-watchtower
+    container_name: sistracia.com-watchtower
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock

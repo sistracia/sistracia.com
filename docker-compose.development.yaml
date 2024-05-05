@@ -1,7 +1,7 @@
 services:
   web:
     build: .
-    container_name: writing
+    container_name: sistracia.com
     restart: unless-stopped
     ports:
       - "${PORT}:${ASPNETCORE_URLS_PORT}"
