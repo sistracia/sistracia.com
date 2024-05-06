@@ -1,5 +1,6 @@
 ---
 title: Love at First Sight with F#
+description: A story about the first time when I meet F#.
 ---
 
 # TODO
