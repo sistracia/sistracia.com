@@ -1,0 +1,32 @@
+#root {
+  margin-right: auto;
+  margin-left: auto;
+  max-width: 800px;
+
+  & > header {
+    margin-bottom: 25px;
+  }
+}
+
+#root > main > #posts {
+  & > article {
+    display: grid;
+    column-gap: 10px;
+    grid-template:
+      "title date" auto
+      "desc desc" auto
+      / fit-content(100%) auto;
+
+    & > h3 {
+      grid-area: title;
+    }
+
+    & > span {
+      grid-area: date;
+    }
+
+    & > p {
+      grid-area: desc;
+    }
+  }
+}
