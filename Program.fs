@@ -13,36 +13,48 @@ open System.IO
 open GrayMattr
 
 let contentPath: string = "./content"
-let contentExt: string = "*.md"
+let postsPath: string = $"{contentPath}/posts"
+let profilePath = $"{contentPath}/profile.yaml"
 
 let githubURL: string = "https://github.com/sistracia/sistracia.com"
 let githubContentOriginURL: string = $"{githubURL}/blob/main/content"
 let githubContentHistoryURL: string = $"{githubURL}/commits/main/content"
 
 [<CLIMutable>]
-type Mattr =
+type ProfileMattr =
+    { Name: string
+      Introduction: string
+      Links: string array }
+
+    static member Default =
+        { Name = ""
+          Introduction = ""
+          Links = [||] }
+
+[<CLIMutable>]
+type PostMattr =
     { Title: string
       Description: string }
 
     static member Default = { Title = ""; Description = "" }
 
 [<Struct>]
-type FileMeta =
+type PostMeta =
     { Slug: string
       CreationTime: DateTime
       ModificationTime: DateTime
       Content: string
-      Mattr: Mattr }
+      Mattr: PostMattr }
 
     member this.FormattedCreationTime = this.CreationTime.ToString("d.M.yyyy")
     member this.FormattedModificationTime = this.ModificationTime.ToString("d.M.yyyy")
 
 [<Struct>]
-type FileResponse =
+type PostResponse =
     { CreationTime: DateTime
       ModificationTime: DateTime
       Slug: string
-      Mattr: Mattr }
+      Mattr: PostMattr }
 
 module Utils =
     let markdigPipeline: MarkdownPipeline =
@@ -116,7 +128,7 @@ module Utils =
 
     let mdToHtmlDoc = mdToHtml >> htmlToHtmlDoc
 
-    let limitFileMetas (limit: int) (fileMetas: FileMeta seq) : FileMeta seq =
+    let limitFileMetas (limit: int) (fileMetas: PostMeta seq) : PostMeta seq =
         if limit <= 0 || limit > (fileMetas |> Seq.length) then
             fileMetas
         else
@@ -129,28 +141,28 @@ module Utils =
         $"{githubContentHistoryURL}/{Uri.EscapeDataString(slug)}.md"
 
 module Reader =
-    let loadFiles (contentPath: string) (contentExt: string) : Async<FileMeta seq> =
+    let loadFiles (contentPath: string) : Async<PostMeta seq> =
         async {
             return
-                Directory.EnumerateFiles(contentPath, contentExt)
+                Directory.EnumerateFiles(contentPath, "*.md")
                 |> Seq.map (fun (filePath: string) ->
-                    let fileMattr: GrayFile<Mattr> = (Mattr.Read<Mattr> filePath)
+                    let fileMattr: GrayFile<PostMattr> = (Mattr.Read<PostMattr> filePath)
 
-                    { FileMeta.Slug = Path.GetFileNameWithoutExtension filePath
-                      FileMeta.CreationTime = File.GetCreationTime filePath
-                      FileMeta.ModificationTime = File.GetLastWriteTime filePath
-                      Content = fileMattr.Content
-                      FileMeta.Mattr =
+                    { PostMeta.Slug = Path.GetFileNameWithoutExtension filePath
+                      PostMeta.CreationTime = File.GetCreationTime filePath
+                      PostMeta.ModificationTime = File.GetLastWriteTime filePath
+                      PostMeta.Content = fileMattr.Content
+                      PostMeta.Mattr =
                         match fileMattr.Data with
-                        | None -> Mattr.Default
-                        | Some(data: Mattr) -> data })
+                        | None -> PostMattr.Default
+                        | Some(data: PostMattr) -> data })
         }
 
 module Content =
 
-    let getHtml (fileMeta: FileMeta) : string = Utils.mdToHtml fileMeta.Content
+    let getHtml (fileMeta: PostMeta) : string = Utils.mdToHtml fileMeta.Content
 
-    let getJson (fileMeta: FileMeta) : obj =
+    let getJson (fileMeta: PostMeta) : obj =
         Utils.getHtmlBodyElements ((Utils.mdToHtmlDoc fileMeta.Content).DocumentNode)
 
 module HtmlView =
@@ -219,7 +231,7 @@ module HtmlView =
                               Elem.link [ Attr.href styleLink; Attr.rel "stylesheet" ] ] ]
               Elem.body [] content ]
 
-    let postCard (fileMeta: FileMeta) : XmlNode =
+    let postCard (fileMeta: PostMeta) : XmlNode =
         Elem.article
             []
             [ Elem.h3
@@ -230,7 +242,7 @@ module HtmlView =
               Elem.span [] [ Text.raw fileMeta.FormattedCreationTime ]
               Elem.p [] [ Text.raw fileMeta.Mattr.Description ] ]
 
-    let homeView (fileMetas: FileMeta seq) : XmlNode =
+    let homeView (profile: ProfileMattr) (fileMetas: PostMeta seq) : XmlNode =
         master
             "Writting"
             [| "styles/home.css" |]
@@ -238,22 +250,21 @@ module HtmlView =
                   [ Attr.id "root" ]
                   [ Elem.header
                         []
-                        [ Elem.h1 [] [ Text.raw "Sistracia" ]
-                          Elem.p
-                              []
-                              [ Text.raw
-                                    "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Morbi sed nulla mollis erat pellentesque aliquet ut et eros. Donec aliquam tellus et vestibulum porta." ]
-                          Elem.a [ Attr.href "https://github.com/sistracia" ] [ Text.raw "github.com/sistracia" ] ]
+                        [ Elem.h1 [] [ Text.raw profile.Name ]
+                          Elem.p [] [ Text.raw profile.Introduction ]
+                          yield!
+                              [ for link: string in profile.Links do
+                                    Elem.a [ Attr.href link ] [ Text.raw link ] ] ]
                     Elem.main
                         []
                         [ Elem.section
                               [ Attr.id "posts" ]
                               [ Elem.h2 [] [ Text.raw "Posts" ]
                                 yield!
-                                    [ for fileMeta: FileMeta in fileMetas do
+                                    [ for fileMeta: PostMeta in fileMetas do
                                           postCard fileMeta ] ] ] ] ]
 
-    let detailView (content: string) (fileMeta: FileMeta) : XmlNode =
+    let detailView (content: string) (fileMeta: PostMeta) : XmlNode =
         master
             "Writting"
             [| "styles/detail.css"; "styles/prism.css" |]
@@ -291,36 +302,36 @@ module HtmlView =
 
 module ApiResponse =
 
-    let getHtmlList (limit: int) (fileMetas: FileMeta seq) : string seq =
+    let getHtmlList (limit: int) (fileMetas: PostMeta seq) : string seq =
         fileMetas
         |> Utils.limitFileMetas limit
-        |> Seq.map (fun (fileMeta: FileMeta) -> fileMeta |> HtmlView.postCard |> renderHtml)
+        |> Seq.map (fun (fileMeta: PostMeta) -> fileMeta |> HtmlView.postCard |> renderHtml)
 
-    let getBySlug (slug: string) (fileMetas: FileMeta seq) : FileMeta option =
-        fileMetas |> Seq.tryFind (fun (fileMeta: FileMeta) -> fileMeta.Slug = slug)
+    let getBySlug (slug: string) (fileMetas: PostMeta seq) : PostMeta option =
+        fileMetas |> Seq.tryFind (fun (fileMeta: PostMeta) -> fileMeta.Slug = slug)
 
-    let getBySlugOrDefault<'T> (somer: FileMeta -> 'T) (none: 'T) (slug: string) (fileMetas: FileMeta seq) : 'T =
+    let getBySlugOrDefault<'T> (somer: PostMeta -> 'T) (none: 'T) (slug: string) (fileMetas: PostMeta seq) : 'T =
         match getBySlug slug fileMetas with
-        | Some(fileMeta: FileMeta) -> somer fileMeta
+        | Some(fileMeta: PostMeta) -> somer fileMeta
         | None -> none
 
-    let getHtmlBySlug (slug: string) (fileMetas: FileMeta seq) : string =
+    let getHtmlBySlug (slug: string) (fileMetas: PostMeta seq) : string =
         getBySlugOrDefault Content.getHtml "" slug fileMetas
 
-    let getJsonList (limit: int) (fileMetas: FileMeta seq) : FileResponse seq =
+    let getJsonList (limit: int) (fileMetas: PostMeta seq) : PostResponse seq =
         fileMetas
         |> Utils.limitFileMetas limit
-        |> Seq.map (fun (fileMeta: FileMeta) ->
-            { FileResponse.Slug = fileMeta.Slug
-              FileResponse.CreationTime = fileMeta.CreationTime
-              FileResponse.ModificationTime = fileMeta.ModificationTime
-              FileResponse.Mattr = fileMeta.Mattr })
+        |> Seq.map (fun (fileMeta: PostMeta) ->
+            { PostResponse.Slug = fileMeta.Slug
+              PostResponse.CreationTime = fileMeta.CreationTime
+              PostResponse.ModificationTime = fileMeta.ModificationTime
+              PostResponse.Mattr = fileMeta.Mattr })
 
-    let getJsonBySlug (slug: string) (fileMetas: FileMeta seq) : obj =
+    let getJsonBySlug (slug: string) (fileMetas: PostMeta seq) : obj =
         getBySlugOrDefault Content.getJson "" slug fileMetas
 
 module ApiHandler =
-    let htmlListHandler (fileMetas: FileMeta seq) : HttpHandler =
+    let htmlListHandler (fileMetas: PostMeta seq) : HttpHandler =
         fun (ctx: HttpContext) ->
             let q: QueryCollectionReader = Request.getQuery ctx
 
@@ -329,7 +340,7 @@ module ApiHandler =
 
             Response.ofHtmlString htmlResponse ctx
 
-    let htmlSlugHandler (fileMetas: FileMeta seq) : HttpHandler =
+    let htmlSlugHandler (fileMetas: PostMeta seq) : HttpHandler =
         fun (ctx: HttpContext) ->
             task {
                 let route: RouteCollectionReader = Request.getRoute ctx
@@ -338,16 +349,16 @@ module ApiHandler =
                 return! Response.ofHtmlString htmlResponse ctx
             }
 
-    let jsonListHandler (fileMetas: FileMeta seq) : HttpHandler =
+    let jsonListHandler (fileMetas: PostMeta seq) : HttpHandler =
         fun (ctx: HttpContext) ->
             let q: QueryCollectionReader = Request.getQuery ctx
 
-            let jsonResponse: FileResponse seq =
+            let jsonResponse: PostResponse seq =
                 fileMetas |> ApiResponse.getJsonList (q.GetInt("limit", 0))
 
             Response.ofJson jsonResponse ctx
 
-    let jsonSlugHandler (fileMetas: FileMeta seq) : HttpHandler =
+    let jsonSlugHandler (fileMetas: PostMeta seq) : HttpHandler =
         fun (ctx: HttpContext) ->
             task {
                 let route: RouteCollectionReader = Request.getRoute ctx
@@ -356,10 +367,13 @@ module ApiHandler =
                 return! Response.ofJson jsonResponse ctx
             }
 
-    let mainPageHandler (fileMetas: FileMeta seq) : HttpHandler =
-        fileMetas |> Utils.limitFileMetas 0 |> HtmlView.homeView |> Response.ofHtml
+    let mainPageHandler (profile: ProfileMattr) (fileMetas: PostMeta seq) : HttpHandler =
+        fileMetas
+        |> Utils.limitFileMetas 0
+        |> HtmlView.homeView profile
+        |> Response.ofHtml
 
-    let detailPage (fileMetas: FileMeta seq) : HttpHandler =
+    let detailPage (fileMetas: PostMeta seq) : HttpHandler =
         fun (ctx: HttpContext) ->
             task {
                 let route: RouteCollectionReader = Request.getRoute ctx
@@ -368,16 +382,21 @@ module ApiHandler =
                 let response =
                     match ApiResponse.getBySlug slug fileMetas with
                     | None -> Response.ofPlainText "Not Found" ctx
-                    | Some(fileMeta: FileMeta) ->
+                    | Some(fileMeta: PostMeta) ->
                         Response.ofHtml (HtmlView.detailView (Content.getHtml fileMeta) fileMeta) ctx
 
                 return! response
             }
 
-let (fileMetas: FileMeta seq) =
-    (Reader.loadFiles contentPath contentExt)
+let (fileMetas: PostMeta seq) =
+    (Reader.loadFiles postsPath)
     |> Async.RunSynchronously
     |> Seq.sortByDescending _.CreationTime
+
+let (profile: ProfileMattr) =
+    match (Mattr.Read<ProfileMattr> profilePath).Data with
+    | None -> ProfileMattr.Default
+    | Some(data: ProfileMattr) -> data
 
 webHost [||] {
     use_caching
@@ -386,7 +405,7 @@ webHost [||] {
     use_static_files
 
     endpoints
-        [ get "/" (ApiHandler.mainPageHandler fileMetas)
+        [ get "/" (ApiHandler.mainPageHandler profile fileMetas)
           get "/{slug}" (ApiHandler.detailPage fileMetas)
           get "/html" (ApiHandler.htmlListHandler fileMetas)
           get "/html/{slug}" (ApiHandler.htmlSlugHandler fileMetas)
