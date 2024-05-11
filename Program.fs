@@ -58,7 +58,7 @@ type PostResponse =
 
 module Utils =
     let markdigPipeline: MarkdownPipeline =
-        (new MarkdownPipelineBuilder())
+        MarkdownPipelineBuilder()
             .UseAbbreviations()
             .UseAdvancedExtensions()
             .UseAutoIdentifiers()
@@ -91,7 +91,7 @@ module Utils =
     let mdToHtml (md: string) : string = Markdown.ToHtml(md, markdigPipeline)
 
     let htmlToHtmlDoc (html: string) : HtmlDocument =
-        let doc: HtmlDocument = new HtmlDocument()
+        let doc: HtmlDocument = HtmlDocument()
         doc.LoadHtml(html)
         doc
 
@@ -140,18 +140,34 @@ module Utils =
     let contentHistory (slug: string) : string =
         $"{githubContentHistoryURL}/{Uri.EscapeDataString(slug)}.md"
 
+    let getFileStr (idx: int) (path: string) =
+        let segments: string array = path.Split '/'
+
+        match Array.tryItem (segments.Length - idx) segments with
+        | None -> "not-found"
+        | Some(segment: string) -> segment
+
+    let getFileDir = getFileStr 2
+
 module Reader =
+    let rec getAllMdFiles (directoryPath: string) : string seq =
+        let mdFiles: string seq = Directory.EnumerateFiles(directoryPath, "index.md")
+        let subDirectories: string seq = Directory.EnumerateDirectories(directoryPath)
+        let subDirMdFiles: string seq = subDirectories |> Seq.collect getAllMdFiles
+
+        Seq.append mdFiles subDirMdFiles
+
     let loadFiles (contentPath: string) : Async<PostMeta seq> =
         async {
             return
-                Directory.EnumerateFiles(contentPath, "*.md")
+                getAllMdFiles contentPath
                 |> Seq.map (fun (filePath: string) ->
                     let fileMattr: GrayFile<PostMattr> = (Mattr.Read<PostMattr> filePath)
 
-                    { PostMeta.Slug = Path.GetFileNameWithoutExtension filePath
+                    { PostMeta.Slug = Utils.getFileDir filePath
                       PostMeta.CreationTime = File.GetCreationTime filePath
                       PostMeta.ModificationTime = File.GetLastWriteTime filePath
-                      PostMeta.Content = fileMattr.Content
+                      PostMeta.Content = fileMattr.Content.Replace("(./", "(./post-assets/")
                       PostMeta.Mattr =
                         match fileMattr.Data with
                         | None -> PostMattr.Default
