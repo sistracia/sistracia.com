@@ -2,6 +2,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS server-build
 WORKDIR /Server
 
+RUN apt update && apt install build-essential -y --no-install-recommends
+
 # Install dependencies
 COPY *.fsproj .
 RUN dotnet restore
@@ -10,6 +12,7 @@ RUN dotnet restore
 COPY . .
 
 # Build and publish a release
+RUN make update_post_assets
 RUN dotnet publish -c Release -o publish
 
 ## App Area
