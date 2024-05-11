@@ -15,10 +15,10 @@ Few days later, I read something about [SAFE Stack](https://safe-stack.github.io
 
 ## SAFE stack
 
-## Experience with SAFE stack (docs, learning, debugging, searching for resource, error)
+As I mentioned before, SAFE Stack introduce me to F#. After I read the F# language tour, I straight tried to build something using SAFE Stack without do any searching for other tech in F#. I don't read the whole SAFE Stack documentation before start build my own F# project, I just follow [SAFE Dojo](https://github.com/CompositionalIT/SAFE-Dojo) that introduced in SAFE Stack documentation. After I finish it I create [my own project using F# and SAFE Stack](https://github.com/sistracia/rss-bookmarkr).
+
+## Experience with SAFE stack (docs, learning, searching for resource)
 
 ## Though about SAFE stack
-
-## Migrate to Giraffe
 
 ## Next step
