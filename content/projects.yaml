@@ -1,0 +1,10 @@
+---
+projects:
+  - name: RSS Bookmarkr
+    link: https://rssbookmarkr.sistracia.com/
+    sourcelink: https://github.com/sistracia/rss-bookmarkr
+    description: Bookmark your favorite RSS feeds.
+    tags:
+      - F#
+      - Fable
+      - PostgreSQL

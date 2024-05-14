@@ -15,10 +15,25 @@ open GrayMattr
 let contentPath: string = "./content"
 let postsPath: string = $"{contentPath}/posts"
 let profilePath = $"{contentPath}/profile.yaml"
+let projectsPath = $"{contentPath}/projects.yaml"
 
 let githubURL: string = "https://github.com/sistracia/sistracia.com"
 let githubContentOriginURL: string = $"{githubURL}/blob/main/content"
 let githubContentHistoryURL: string = $"{githubURL}/commits/main/content"
+
+[<CLIMutable>]
+type ProjectMattr =
+    { Name: string
+      Link: string
+      Sourcelink: string
+      Description: string
+      Tags: string array }
+
+[<CLIMutable>]
+type ProjectsMattr =
+    { Projects: ProjectMattr array }
+
+    static member Default = { Projects = [||] }
 
 [<CLIMutable>]
 type ProfileMattr =
@@ -46,8 +61,9 @@ type PostMeta =
       Content: string
       Mattr: PostMattr }
 
-    member this.FormattedCreationTime = this.CreationTime.ToString("d.M.yyyy")
-    member this.FormattedModificationTime = this.ModificationTime.ToString("d.M.yyyy")
+    member this.FormattedCreationTime = this.CreationTime.ToString "d.M.yyyy"
+    member this.FormattedModificationTime = this.ModificationTime.ToString "d.M.yyyy"
+    member this.EscapeSlug = Uri.EscapeDataString this.Slug
 
 [<Struct>]
 type PostResponse =
@@ -250,15 +266,23 @@ module HtmlView =
     let postCard (fileMeta: PostMeta) : XmlNode =
         Elem.article
             []
-            [ Elem.h3
-                  []
-                  [ Elem.a
-                        [ Attr.href (sprintf $"{Uri.EscapeDataString(fileMeta.Slug)}") ]
-                        [ Text.raw fileMeta.Mattr.Title ] ]
+            [ Elem.h3 [] [ Elem.a [ Attr.href fileMeta.EscapeSlug ] [ Text.raw fileMeta.Mattr.Title ] ]
               Elem.span [] [ Text.raw fileMeta.FormattedCreationTime ]
               Elem.p [] [ Text.raw fileMeta.Mattr.Description ] ]
 
-    let homeView (profile: ProfileMattr) (fileMetas: PostMeta seq) : XmlNode =
+    let projectCard (project: ProjectMattr) : XmlNode =
+        Elem.article
+            []
+            [ Elem.h3 [] [ Elem.a [ Attr.href project.Link ] [ Text.raw project.Name ] ]
+              Elem.a [ Attr.href project.Sourcelink ] [ Text.raw "Source Code" ]
+              Elem.p [] [ Text.raw project.Description ]
+              Elem.div
+                  []
+                  [ yield!
+                        [ for tag: string in project.Tags do
+                              Elem.span [] [ Text.raw tag ] ] ] ]
+
+    let homeView (profile: ProfileMattr, projects: ProjectMattr array) (fileMetas: PostMeta seq) : XmlNode =
         master
             "Writting"
             [| "styles/home.css" |]
@@ -274,6 +298,12 @@ module HtmlView =
                     Elem.main
                         []
                         [ Elem.section
+                              [ Attr.id "projects" ]
+                              [ Elem.h2 [] [ Text.raw "Projects" ]
+                                yield!
+                                    [ for project: ProjectMattr in projects do
+                                          projectCard project ] ]
+                          Elem.section
                               [ Attr.id "posts" ]
                               [ Elem.h2 [] [ Text.raw "Posts" ]
                                 yield!
@@ -383,10 +413,10 @@ module ApiHandler =
                 return! Response.ofJson jsonResponse ctx
             }
 
-    let mainPageHandler (profile: ProfileMattr) (fileMetas: PostMeta seq) : HttpHandler =
+    let mainPageHandler (profile: ProfileMattr, projects: ProjectMattr array, fileMetas: PostMeta seq) : HttpHandler =
         fileMetas
         |> Utils.limitFileMetas 0
-        |> HtmlView.homeView profile
+        |> HtmlView.homeView (profile, projects)
         |> Response.ofHtml
 
     let detailPage (fileMetas: PostMeta seq) : HttpHandler =
@@ -414,6 +444,12 @@ let (profile: ProfileMattr) =
     | None -> ProfileMattr.Default
     | Some(data: ProfileMattr) -> data
 
+let (projects: ProjectsMattr) =
+    match (Mattr.Read<ProjectsMattr> projectsPath).Data with
+    | None -> ProjectsMattr.Default
+    | Some(data: ProjectsMattr) -> data
+
+
 webHost [||] {
     use_caching
     use_compression
@@ -421,7 +457,7 @@ webHost [||] {
     use_static_files
 
     endpoints
-        [ get "/" (ApiHandler.mainPageHandler profile fileMetas)
+        [ get "/" (ApiHandler.mainPageHandler (profile, projects.Projects, fileMetas))
           get "/{slug}" (ApiHandler.detailPage fileMetas)
           get "/html" (ApiHandler.htmlListHandler fileMetas)
           get "/html/{slug}" (ApiHandler.htmlSlugHandler fileMetas)

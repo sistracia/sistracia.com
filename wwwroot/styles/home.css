@@ -8,25 +8,40 @@
   }
 }
 
-#root > main > #posts {
-  & > article {
-    display: grid;
-    column-gap: 10px;
-    grid-template:
-      "title date" auto
-      "desc desc" auto
-      / fit-content(100%) auto;
+#root > main {
+  & > section {
+    margin-bottom: 25px;
+  }
 
-    & > h3 {
-      grid-area: title;
+  & > #projects {
+    & > article {
+      & > div > span {
+        margin-right: 10px;
+        color: grey;
+      }
     }
+  }
 
-    & > span {
-      grid-area: date;
-    }
+  & > #posts {
+    & > article {
+      display: grid;
+      column-gap: 10px;
+      grid-template:
+        "title date" auto
+        "desc desc" auto
+        / fit-content(100%) auto;
 
-    & > p {
-      grid-area: desc;
+      & > h3 {
+        grid-area: title;
+      }
+
+      & > span {
+        grid-area: date;
+      }
+
+      & > p {
+        grid-area: desc;
+      }
     }
   }
 }
