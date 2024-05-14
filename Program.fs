@@ -49,28 +49,29 @@ type ProfileMattr =
 [<CLIMutable>]
 type PostMattr =
     { Title: string
-      Description: string }
+      Description: string
+      Creationtime: DateTime
+      Modificationtime: DateTime }
 
-    static member Default = { Title = ""; Description = "" }
+    member this.FormattedCreationtime = this.Creationtime.ToString "d.M.yyyy"
+    member this.FormattedModificationtime = this.Modificationtime.ToString "d.M.yyyy"
+
+    static member Default =
+        { Title = ""
+          Description = ""
+          Creationtime = DateTime.UtcNow
+          Modificationtime = DateTime.UtcNow }
 
 [<Struct>]
 type PostMeta =
     { Slug: string
-      CreationTime: DateTime
-      ModificationTime: DateTime
       Content: string
       Mattr: PostMattr }
 
-    member this.FormattedCreationTime = this.CreationTime.ToString "d.M.yyyy"
-    member this.FormattedModificationTime = this.ModificationTime.ToString "d.M.yyyy"
     member this.EscapeSlug = Uri.EscapeDataString this.Slug
 
 [<Struct>]
-type PostResponse =
-    { CreationTime: DateTime
-      ModificationTime: DateTime
-      Slug: string
-      Mattr: PostMattr }
+type PostResponse = { Slug: string; Mattr: PostMattr }
 
 module Utils =
     let markdigPipeline: MarkdownPipeline =
@@ -181,8 +182,6 @@ module Reader =
                     let fileMattr: GrayFile<PostMattr> = (Mattr.Read<PostMattr> filePath)
 
                     { PostMeta.Slug = Utils.getFileDir filePath
-                      PostMeta.CreationTime = File.GetCreationTime filePath
-                      PostMeta.ModificationTime = File.GetLastWriteTime filePath
                       PostMeta.Content = fileMattr.Content.Replace("(./", "(./post-assets/")
                       PostMeta.Mattr =
                         match fileMattr.Data with
@@ -263,12 +262,12 @@ module HtmlView =
                               Elem.link [ Attr.href styleLink; Attr.rel "stylesheet" ] ] ]
               Elem.body [] content ]
 
-    let postCard (fileMeta: PostMeta) : XmlNode =
+    let postCard (postMeta: PostMeta) : XmlNode =
         Elem.article
             []
-            [ Elem.h3 [] [ Elem.a [ Attr.href fileMeta.EscapeSlug ] [ Text.raw fileMeta.Mattr.Title ] ]
-              Elem.span [] [ Text.raw fileMeta.FormattedCreationTime ]
-              Elem.p [] [ Text.raw fileMeta.Mattr.Description ] ]
+            [ Elem.h3 [] [ Elem.a [ Attr.href postMeta.EscapeSlug ] [ Text.raw postMeta.Mattr.Title ] ]
+              Elem.span [] [ Text.raw postMeta.Mattr.FormattedCreationtime ]
+              Elem.p [] [ Text.raw postMeta.Mattr.Description ] ]
 
     let projectCard (project: ProjectMattr) : XmlNode =
         Elem.article
@@ -334,7 +333,7 @@ module HtmlView =
                                                 []
                                                 [ Elem.a
                                                       [ Attr.href (Utils.contentOrigin fileMeta.Slug) ]
-                                                      [ Text.raw fileMeta.FormattedCreationTime ] ] ]
+                                                      [ Text.raw fileMeta.Mattr.FormattedCreationtime ] ] ]
                                       Elem.tr
                                           []
                                           [ Elem.td [] [ Text.raw "Updated" ]
@@ -342,7 +341,7 @@ module HtmlView =
                                                 []
                                                 [ Elem.a
                                                       [ Attr.href (Utils.contentHistory fileMeta.Slug) ]
-                                                      [ Text.raw fileMeta.FormattedModificationTime ] ] ] ] ] ]
+                                                      [ Text.raw fileMeta.Mattr.FormattedModificationtime ] ] ] ] ] ]
                     Elem.main [] [ Text.raw content ] ]
               Elem.script [ Attr.src "scripts/prism.js" ] [] ]
 
@@ -369,8 +368,6 @@ module ApiResponse =
         |> Utils.limitFileMetas limit
         |> Seq.map (fun (fileMeta: PostMeta) ->
             { PostResponse.Slug = fileMeta.Slug
-              PostResponse.CreationTime = fileMeta.CreationTime
-              PostResponse.ModificationTime = fileMeta.ModificationTime
               PostResponse.Mattr = fileMeta.Mattr })
 
     let getJsonBySlug (slug: string) (fileMetas: PostMeta seq) : obj =
@@ -437,7 +434,7 @@ module ApiHandler =
 let (fileMetas: PostMeta seq) =
     (Reader.loadFiles postsPath)
     |> Async.RunSynchronously
-    |> Seq.sortByDescending _.CreationTime
+    |> Seq.sortByDescending _.Mattr.Creationtime
 
 let (profile: ProfileMattr) =
     match (Mattr.Read<ProfileMattr> profilePath).Data with

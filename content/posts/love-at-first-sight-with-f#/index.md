@@ -1,6 +1,8 @@
 ---
 title: Love at First Sight with F#
 description: A story about the first time when I meet F#.
+creationtime: 2024-02-23 00:00:00 +0000
+modificationtime: 2024-05-14 00:00:00 +0000
 ---
 
 ## First I meet F#

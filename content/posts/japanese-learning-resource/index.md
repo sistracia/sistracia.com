@@ -1,6 +1,8 @@
 ---
 title: Japanese Learning Resource
 description: List of resources to getting started Japanese.
+creationtime: 2024-05-10 00:00:00 +0000
+modificationtime: 2024-05-12 00:00:00 +0000
 ---
 
 ## List of Resources
