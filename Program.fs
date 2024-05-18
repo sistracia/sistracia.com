@@ -18,8 +18,8 @@ let profilePath = $"{contentPath}/profile.yaml"
 let projectsPath = $"{contentPath}/projects.yaml"
 
 let githubURL: string = "https://github.com/sistracia/sistracia.com"
-let githubContentOriginURL: string = $"{githubURL}/blob/main/content"
-let githubContentHistoryURL: string = $"{githubURL}/commits/main/content"
+let githubContentOriginURL: string = $"{githubURL}/blob/main/content/posts"
+let githubContentHistoryURL: string = $"{githubURL}/commits/main/content/posts"
 
 [<CLIMutable>]
 type ProjectMattr =
@@ -152,10 +152,10 @@ module Utils =
             fileMetas |> Seq.take limit
 
     let contentOrigin (slug: string) : string =
-        $"{githubContentOriginURL}/{Uri.EscapeDataString(slug)}.md"
+        $"{githubContentOriginURL}/{Uri.EscapeDataString(slug)}/index.md"
 
     let contentHistory (slug: string) : string =
-        $"{githubContentHistoryURL}/{Uri.EscapeDataString(slug)}.md"
+        $"{githubContentHistoryURL}/{Uri.EscapeDataString(slug)}/index.md"
 
     let getFileStr (idx: int) (path: string) =
         let segments: string array = path.Split '/'
