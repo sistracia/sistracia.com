@@ -22,4 +22,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /App
 COPY --from=server-build /Server/publish .
 COPY content ./content
+
+ARG PORT=3000
+EXPOSE ${PORT}
+
 ENTRYPOINT ["dotnet", "writing.dll"]
