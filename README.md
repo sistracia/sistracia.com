@@ -27,9 +27,9 @@ See the [Dockerfile here](./Dockerfile).
 Create `.env` file, [see example](./web/.env.example).
 
 ```env
-PORT=<PUBLISHED PORT FOR THE SERVER APP INSIDE Docker>
-ASPNETCORE_URLS_PORT=<SERVER APP PORT INSIDE Docker>
-ASPNETCORE_URLS=<SERVER APP HOST AND PORT INSIDE Docker>
+PORT=<ports that the server should listen on for requests>
+HOSTNAME=<addresses that the server should listen on for requests>
+ASPNETCORE_URLS=http://${HOSTNAME}:${PORT}
 ```
 
 ##### Run with Docker Compose
