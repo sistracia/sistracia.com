@@ -1,16 +1,9 @@
 services:
-  web:
-    image: ghcr.io/sistracia/sistracia.com:main
-    container_name: sistracia.com
-    restart: unless-stopped
-    ports:
-      - "${PORT}:${ASPNETCORE_URLS_PORT}"
+  sistracia-com:
+    image: sistracia-com
+    build: 
+      context: .
+      dockerfile: Dockerfile
     env_file:
-      - .env
-  watchtower:
-    image: containrrr/watchtower:1.7.1
-    container_name: sistracia.com-watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval=30 --cleanup=true sistracia.com
+      - path: ./.env
+        required: true
